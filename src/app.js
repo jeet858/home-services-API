@@ -1,6 +1,8 @@
+const dotenv = require("dotenv");
+dotenv.config();
+
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
@@ -19,9 +21,6 @@ const subserviceRoutes = require("./routes/subservice.route.js");
 const bookingRoutes = require("./routes/booking.route.js");
 const ratingRoutes = require("./routes/rating.route.js");
 const serviceProviderRoutes = require("./routes/serviceProvider.route.js");
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 

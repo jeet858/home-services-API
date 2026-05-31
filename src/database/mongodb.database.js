@@ -3,38 +3,34 @@ const databaseConfig = require("../config/database.config");
 const { logger } = require("../utils/logger.util");
 const { DatabaseError } = require("../utils/error.util");
 
-// Construct the connection string with proper encoding
-const db = `mongodb+srv://${encodeURIComponent(databaseConfig.database_user)}:${encodeURIComponent(databaseConfig.database_password)}@cluster0.ieottwj.mongodb.net/${databaseConfig.database_name}?retryWrites=true&w=majority`;
+let cached = null;
 
 const connectDB = async () => {
+    if (cached && mongoose.connection.readyState === 1) {
+        return cached;
+    }
+
+    const db = `mongodb+srv://${encodeURIComponent(databaseConfig.database_user)}:${encodeURIComponent(databaseConfig.database_password)}@cluster0.ieottwj.mongodb.net/${databaseConfig.database_name}?retryWrites=true&w=majority`;
+
     try {
         logger.info('Attempting to connect to MongoDB', {
             database: databaseConfig.database_name,
             user: databaseConfig.database_user
         });
-        
-        await mongoose.connect(db, {
-            serverSelectionTimeoutMS: 5000 // Timeout after 5s instead of 30s
+
+        cached = await mongoose.connect(db, {
+            serverSelectionTimeoutMS: 5000
         });
-        
-        logger.info('✅ Database connected successfully');
+
+        logger.info('Database connected successfully');
+        return cached;
     } catch (err) {
-        logger.error('❌ Database connection failed', {
+        logger.error('Database connection failed', {
             error: err.message,
             code: err.code,
-            name: err.name,
-            stack: err.stack
+            name: err.name
         });
-        
-        // Log the connection string (without password) for debugging
-        const debugConnectionString = db.replace(
-            /:([^@]+)@/,
-            ':****@'
-        );
-        logger.debug('Connection string (password hidden):', {
-            connectionString: debugConnectionString
-        });
-        
+
         throw new DatabaseError(`Failed to connect to database: ${err.message}`);
     }
 };

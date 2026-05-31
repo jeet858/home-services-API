@@ -1,12 +1,6 @@
 const winston = require('winston');
-const path = require('path');
-const fs = require('fs');
 
-// Ensure logs directory exists
-const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 // Define log format
 const logFormat = winston.format.combine(
@@ -29,32 +23,40 @@ const consoleFormat = winston.format.combine(
   })
 );
 
+// Build transports — file transports only in non-serverless environments
+const transports = [
+  new winston.transports.Console({ format: consoleFormat })
+];
+
+if (!isServerless) {
+  const path = require('path');
+  const fs = require('fs');
+  const logsDir = path.join(__dirname, '../../logs');
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+  transports.push(
+    new winston.transports.File({
+      filename: path.join(logsDir, 'error.log'),
+      level: 'error',
+      maxsize: 5242880,
+      maxFiles: 5,
+      tailable: true
+    }),
+    new winston.transports.File({
+      filename: path.join(logsDir, 'combined.log'),
+      maxsize: 5242880,
+      maxFiles: 5,
+      tailable: true
+    })
+  );
+}
+
 // Create the logger
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: logFormat,
-  transports: [
-    // Write all logs to console
-    new winston.transports.Console({
-      format: consoleFormat
-    }),
-    // Write all logs error (and above) to error.log
-    new winston.transports.File({
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
-    }),
-    // Write all logs to combined.log
-    new winston.transports.File({
-      filename: path.join(logsDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
-    })
-  ],
-  // Don't exit on error
+  transports,
   exitOnError: false
 });
 
